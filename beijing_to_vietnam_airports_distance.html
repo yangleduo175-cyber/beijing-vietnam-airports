@@ -1,0 +1,493 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>北京到越南机场距离可视化</title>
+  <style>
+    :root {
+      --bg: #07111f;
+      --panel: rgba(255,255,255,0.08);
+      --panel2: rgba(255,255,255,0.12);
+      --text: #eef6ff;
+      --muted: #9fb3c8;
+      --line: rgba(255,255,255,0.16);
+      --accent: #66e0ff;
+      --accent2: #a8ff78;
+      --warn: #ffd166;
+      --danger: #ff7a90;
+      --shadow: 0 22px 60px rgba(0,0,0,0.35);
+      --radius: 22px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", Arial, sans-serif;
+      background:
+        radial-gradient(circle at 20% 10%, rgba(102,224,255,0.22), transparent 34rem),
+        radial-gradient(circle at 88% 2%, rgba(168,255,120,0.16), transparent 28rem),
+        linear-gradient(135deg, #07111f 0%, #111827 48%, #07111f 100%);
+    }
+    .wrap { width: min(1480px, 94vw); margin: 0 auto; padding: 34px 0 52px; }
+    header {
+      display: grid;
+      grid-template-columns: 1.15fr .85fr;
+      gap: 22px;
+      align-items: end;
+      margin-bottom: 22px;
+    }
+    .hero {
+      padding: 28px;
+      background: linear-gradient(135deg, rgba(255,255,255,0.11), rgba(255,255,255,0.045));
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(16px);
+    }
+    h1 { margin: 0 0 10px; font-size: clamp(28px, 4vw, 52px); letter-spacing: -0.04em; line-height: 1.05; }
+    .subtitle { margin: 0; color: var(--muted); font-size: 15px; line-height: 1.75; }
+    .controls {
+      display: grid; gap: 12px;
+      padding: 22px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(16px);
+    }
+    label { color: var(--muted); font-size: 12px; display:block; margin-bottom: 6px; }
+    select, input {
+      width: 100%;
+      color: var(--text);
+      background: rgba(7,17,31,0.74);
+      border: 1px solid rgba(255,255,255,0.18);
+      outline: none;
+      border-radius: 14px;
+      padding: 12px 14px;
+      font-size: 14px;
+    }
+    select:focus, input:focus { border-color: rgba(102,224,255,0.8); box-shadow: 0 0 0 4px rgba(102,224,255,0.12); }
+    .grid { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(420px, .95fr); gap: 22px; }
+    .card {
+      background: linear-gradient(180deg, rgba(255,255,255,0.095), rgba(255,255,255,0.045));
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      backdrop-filter: blur(16px);
+    }
+    .card-head {
+      padding: 18px 20px;
+      display:flex; align-items:center; justify-content:space-between; gap: 12px;
+      border-bottom: 1px solid var(--line);
+    }
+    .card-head h2 { margin: 0; font-size: 17px; letter-spacing: -.01em; }
+    .pill {
+      display:inline-flex; align-items:center; gap: 6px;
+      color: var(--muted); font-size: 12px;
+      border: 1px solid var(--line); border-radius: 999px;
+      padding: 7px 10px; background: rgba(255,255,255,0.05);
+      white-space: nowrap;
+    }
+    .stats { display:grid; grid-template-columns: repeat(4, 1fr); gap: 12px; padding: 16px 20px 0; }
+    .stat {
+      padding: 15px; border:1px solid var(--line); border-radius: 18px;
+      background: rgba(255,255,255,0.055);
+    }
+    .stat .k { color: var(--muted); font-size: 12px; margin-bottom: 6px; }
+    .stat .v { font-size: 22px; font-weight: 800; letter-spacing: -0.04em; }
+    .map-wrap { padding: 12px 20px 20px; }
+    svg { width: 100%; height: auto; display:block; border-radius: 20px; background:
+      radial-gradient(circle at 72% 12%, rgba(102,224,255,.14), transparent 24rem),
+      linear-gradient(180deg, rgba(11,24,43,.92), rgba(7,17,31,.9));
+      border: 1px solid rgba(255,255,255,0.10);
+    }
+    .gridline { stroke: rgba(255,255,255,0.09); stroke-width: 1; }
+    .coast { fill: rgba(255,255,255,0.045); stroke: rgba(255,255,255,0.18); stroke-width: 1.2; }
+    .route { stroke: rgba(102,224,255,0.24); stroke-width: 1.2; fill: none; }
+    .route.selected { stroke: var(--warn); stroke-width: 3; filter: drop-shadow(0 0 8px rgba(255,209,102,.45)); }
+    .airport-dot { fill: var(--accent2); stroke: #06121e; stroke-width: 1.5; cursor: pointer; }
+    .airport-dot.selected { fill: var(--warn); r: 7; }
+    .origin-dot { fill: var(--danger); stroke: #fff; stroke-width: 1.5; }
+    .label { fill: rgba(238,246,255,.88); font-size: 11px; font-weight: 700; paint-order: stroke; stroke: rgba(7,17,31,.9); stroke-width: 4; }
+    .map-note { color: var(--muted); font-size: 12px; line-height:1.7; padding: 0 20px 18px; }
+    .rank-list { padding: 18px 20px; display:grid; gap: 9px; max-height: 660px; overflow:auto; }
+    .bar-row {
+      display:grid;
+      grid-template-columns: 54px 1fr 74px;
+      align-items:center; gap: 10px;
+      padding: 8px 10px; border-radius: 14px;
+      border: 1px solid transparent;
+      cursor:pointer;
+    }
+    .bar-row:hover, .bar-row.selected { background: rgba(255,255,255,0.07); border-color: rgba(255,255,255,0.13); }
+    .code { font-weight: 800; letter-spacing:.03em; }
+    .bar-bg { height: 28px; background: rgba(255,255,255,0.08); border-radius: 999px; overflow: hidden; position:relative; border: 1px solid rgba(255,255,255,0.07); }
+    .bar-fill { height:100%; width:0%; background: linear-gradient(90deg, rgba(102,224,255,.92), rgba(168,255,120,.92)); border-radius:999px; }
+    .bar-label { position:absolute; inset:0; display:flex; align-items:center; padding-left:10px; font-size:12px; color: #06121e; font-weight: 800; mix-blend-mode: screen; }
+    .dist { text-align:right; font-variant-numeric: tabular-nums; color: var(--text); font-weight:700; }
+    .detail { padding: 0 20px 18px; }
+    .detail-box {
+      border:1px solid var(--line); background: rgba(255,255,255,0.055);
+      border-radius: 18px; padding: 16px; min-height: 132px;
+    }
+    .detail-title { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom: 8px; }
+    .detail-title strong { font-size: 19px; }
+    .detail-grid { display:grid; grid-template-columns: repeat(3, 1fr); gap: 10px; color: var(--muted); font-size: 13px; }
+    .detail-grid span { display:block; color: var(--text); font-weight: 700; margin-top: 4px; }
+    .table-wrap { grid-column: 1 / -1; }
+    table { width:100%; border-collapse: collapse; }
+    th, td { padding: 12px 14px; border-bottom: 1px solid rgba(255,255,255,0.09); text-align:left; font-size: 14px; }
+    th { color: var(--muted); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; background: rgba(255,255,255,0.04); position: sticky; top:0; }
+    tbody tr { cursor:pointer; }
+    tbody tr:hover, tbody tr.selected { background: rgba(255,255,255,0.07); }
+    .num { text-align:right; font-variant-numeric: tabular-nums; }
+    .badge { border: 1px solid var(--line); padding: 4px 8px; border-radius: 999px; color: var(--muted); font-size: 12px; }
+    .table-scroll { max-height: 560px; overflow:auto; }
+    .footer {
+      margin-top: 18px; color: var(--muted); font-size: 12px; line-height: 1.75;
+      padding: 18px 22px; border: 1px solid var(--line); border-radius: var(--radius); background: rgba(255,255,255,0.045);
+    }
+    .footer a { color: var(--accent); }
+    .btn {
+      color: var(--text); border:1px solid rgba(255,255,255,.18); border-radius: 14px; background: rgba(255,255,255,.06);
+      padding: 10px 12px; cursor:pointer; font-weight: 700;
+    }
+    .btn:hover { background: rgba(255,255,255,.1); }
+    @media (max-width: 980px) {
+      header, .grid { grid-template-columns: 1fr; }
+      .stats { grid-template-columns: repeat(2, 1fr); }
+      .detail-grid { grid-template-columns: 1fr; }
+      .table-wrap { grid-column: auto; }
+    }
+    @media (max-width: 620px) {
+      .wrap { width: 96vw; padding-top: 18px; }
+      .hero, .controls { padding: 18px; }
+      .stats { grid-template-columns: 1fr; padding: 14px; }
+      th, td { padding: 10px 8px; font-size: 12px; }
+      .bar-row { grid-template-columns: 46px 1fr 66px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <section class="hero">
+        <h1>北京 → 越南机场<br>距离可视化</h1>
+        <p class="subtitle">
+          覆盖 22 个越南民航机场，按经纬度计算北京到每个机场的球面大圆直线距离。可切换起点：北京首都机场、北京大兴机场、北京市中心。
+        </p>
+      </section>
+      <section class="controls">
+        <div>
+          <label for="origin">起点</label>
+          <select id="origin"></select>
+        </div>
+        <div>
+          <label for="sort">排序</label>
+          <select id="sort">
+            <option value="distanceAsc">距离从近到远</option>
+            <option value="distanceDesc">距离从远到近</option>
+            <option value="northSouth">按纬度从北到南</option>
+            <option value="southNorth">按纬度从南到北</option>
+            <option value="code">按 IATA 代码</option>
+          </select>
+        </div>
+        <div>
+          <label for="search">搜索机场、城市、代码</label>
+          <input id="search" placeholder="例如：Hanoi、SGN、岘港、富国" />
+        </div>
+        <button class="btn" id="downloadCsv">下载当前表格 CSV</button>
+      </section>
+    </header>
+
+    <main class="grid">
+      <section class="card">
+        <div class="card-head">
+          <h2>路线示意图</h2>
+          <span class="pill">单位：公里 km</span>
+        </div>
+        <div class="stats">
+          <div class="stat"><div class="k">机场数量</div><div class="v" id="countStat">22</div></div>
+          <div class="stat"><div class="k">最近</div><div class="v" id="nearStat">—</div></div>
+          <div class="stat"><div class="k">最远</div><div class="v" id="farStat">—</div></div>
+          <div class="stat"><div class="k">平均距离</div><div class="v" id="avgStat">—</div></div>
+        </div>
+        <div class="map-wrap">
+          <svg id="map" viewBox="0 0 900 620" role="img" aria-label="北京到越南机场距离示意图"></svg>
+        </div>
+        <p class="map-note">
+          说明：地图为经纬度投影示意，不是导航底图；连线为大圆距离的视觉连接，实际航线会受航路、空域、天气和绕飞影响。
+        </p>
+      </section>
+
+      <section class="card">
+        <div class="card-head">
+          <h2>距离排行</h2>
+          <span class="pill" id="originPill">北京首都国际机场 PEK</span>
+        </div>
+        <div class="rank-list" id="rankList"></div>
+        <div class="detail">
+          <div class="detail-box" id="detailBox"></div>
+        </div>
+      </section>
+
+      <section class="card table-wrap">
+        <div class="card-head">
+          <h2>明细表</h2>
+          <span class="pill">点击任意行可在图中高亮</span>
+        </div>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>代码</th>
+                <th>机场</th>
+                <th>城市</th>
+                <th>类型</th>
+                <th class="num">纬度</th>
+                <th class="num">经度</th>
+                <th class="num">距离</th>
+              </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <section class="footer">
+      <strong>数据与口径：</strong>
+      机场清单按 Flightradar24 当前列出的越南 22 个机场整理，并结合 ACV / Vietnam Airports Corporation 页面与公开机场坐标资料校对。
+      距离使用 Haversine 公式，地球半径取 6371.0088 km，结果四舍五入到整数公里。
+      本页适合做旅行规划的相对距离比较，不应作为飞行签派、航行或法律用途。
+    </section>
+  </div>
+
+<script>
+const airports = [{"code": "VDO", "icao": "VVVD", "name": "Van Don International Airport", "nameZh": "云屯国际机场", "city": "Quang Ninh / Ha Long", "cityZh": "广宁 / 下龙", "lat": 21.11778, "lon": 107.41417, "kind": "国际"}, {"code": "HAN", "icao": "VVNB", "name": "Noi Bai International Airport", "nameZh": "内排国际机场", "city": "Hanoi", "cityZh": "河内", "lat": 21.2212, "lon": 105.807, "kind": "国际"}, {"code": "HPH", "icao": "VVCI", "name": "Cat Bi International Airport", "nameZh": "吉碑国际机场", "city": "Hai Phong", "cityZh": "海防", "lat": 20.81917, "lon": 106.72472, "kind": "国际"}, {"code": "DIN", "icao": "VVDB", "name": "Dien Bien Airport", "nameZh": "奠边机场", "city": "Dien Bien Phu", "cityZh": "奠边府", "lat": 21.39722, "lon": 103.00778, "kind": "国内"}, {"code": "THD", "icao": "VVTX", "name": "Tho Xuan Airport", "nameZh": "寿春机场", "city": "Thanh Hoa", "cityZh": "清化", "lat": 19.9017, "lon": 105.4678, "kind": "国内"}, {"code": "VII", "icao": "VVVH", "name": "Vinh International Airport", "nameZh": "荣市国际机场", "city": "Vinh", "cityZh": "荣市", "lat": 18.73757, "lon": 105.67076, "kind": "国际"}, {"code": "VDH", "icao": "VVDH", "name": "Dong Hoi Airport", "nameZh": "洞海机场", "city": "Dong Hoi", "cityZh": "洞海", "lat": 17.515, "lon": 106.59056, "kind": "国内"}, {"code": "HUI", "icao": "VVPB", "name": "Phu Bai International Airport", "nameZh": "富牌国际机场", "city": "Hue", "cityZh": "顺化", "lat": 16.4015, "lon": 107.702, "kind": "国际"}, {"code": "DAD", "icao": "VVDN", "name": "Da Nang International Airport", "nameZh": "岘港国际机场", "city": "Da Nang", "cityZh": "岘港", "lat": 16.04389, "lon": 108.19944, "kind": "国际"}, {"code": "VCL", "icao": "VVCA", "name": "Chu Lai Airport", "nameZh": "茱莱机场", "city": "Chu Lai / Tam Ky", "cityZh": "茱莱 / 三岐", "lat": 15.4033, "lon": 108.706, "kind": "国内"}, {"code": "UIH", "icao": "VVPC", "name": "Phu Cat Airport", "nameZh": "符吉机场", "city": "Quy Nhon", "cityZh": "归仁", "lat": 13.955, "lon": 109.04222, "kind": "国内"}, {"code": "PXU", "icao": "VVPK", "name": "Pleiku Airport", "nameZh": "波来古机场", "city": "Pleiku", "cityZh": "波来古", "lat": 14.0045, "lon": 108.017, "kind": "国内"}, {"code": "TBB", "icao": "VVTH", "name": "Tuy Hoa Airport", "nameZh": "绥和机场", "city": "Tuy Hoa", "cityZh": "绥和", "lat": 13.04944, "lon": 109.33361, "kind": "国内"}, {"code": "BMV", "icao": "VVBM", "name": "Buon Ma Thuot Airport", "nameZh": "邦美蜀机场", "city": "Buon Ma Thuot", "cityZh": "邦美蜀", "lat": 12.66806, "lon": 108.12, "kind": "国内"}, {"code": "CXR", "icao": "VVCR", "name": "Cam Ranh International Airport", "nameZh": "金兰国际机场", "city": "Nha Trang / Cam Ranh", "cityZh": "芽庄 / 金兰", "lat": 11.99806, "lon": 109.21944, "kind": "国际"}, {"code": "DLI", "icao": "VVDL", "name": "Lien Khuong Airport", "nameZh": "莲姜国际机场", "city": "Da Lat", "cityZh": "大叻", "lat": 11.75056, "lon": 108.37361, "kind": "国际"}, {"code": "SGN", "icao": "VVTS", "name": "Tan Son Nhat International Airport", "nameZh": "新山一国际机场", "city": "Ho Chi Minh City", "cityZh": "胡志明市", "lat": 10.81889, "lon": 106.65194, "kind": "国际"}, {"code": "VCA", "icao": "VVCT", "name": "Can Tho International Airport", "nameZh": "芹苴国际机场", "city": "Can Tho", "cityZh": "芹苴", "lat": 10.08528, "lon": 105.71194, "kind": "国际"}, {"code": "VKG", "icao": "VVRG", "name": "Rach Gia Airport", "nameZh": "迪石机场", "city": "Rach Gia", "cityZh": "迪石", "lat": 9.95972, "lon": 105.13389, "kind": "国内"}, {"code": "PQC", "icao": "VVPQ", "name": "Phu Quoc International Airport", "nameZh": "富国国际机场", "city": "Phu Quoc", "cityZh": "富国岛", "lat": 10.16861, "lon": 103.99315, "kind": "国际"}, {"code": "CAH", "icao": "VVCM", "name": "Ca Mau Airport", "nameZh": "金瓯机场", "city": "Ca Mau", "cityZh": "金瓯", "lat": 9.17778, "lon": 105.1775, "kind": "国内"}, {"code": "VCS", "icao": "VVCS", "name": "Con Dao Airport", "nameZh": "昆岛机场", "city": "Con Dao", "cityZh": "昆岛", "lat": 8.73222, "lon": 106.6325, "kind": "国内"}];
+const origins = [{"key": "pek", "label": "北京首都国际机场 PEK", "lat": 40.080101, "lon": 116.584556}, {"key": "pkx", "label": "北京大兴国际机场 PKX", "lat": 39.5098, "lon": 116.4105}, {"key": "city", "label": "北京市中心（天安门）", "lat": 39.9042, "lon": 116.4074}];
+const R = 6371.0088;
+let selectedCode = "HAN";
+
+const $ = (id) => document.getElementById(id);
+const originSelect = $("origin");
+const sortSelect = $("sort");
+const searchInput = $("search");
+
+function toRad(d) { return d * Math.PI / 180; }
+function haversine(a, b) {
+  const dLat = toRad(b.lat - a.lat);
+  const dLon = toRad(b.lon - a.lon);
+  const lat1 = toRad(a.lat);
+  const lat2 = toRad(b.lat);
+  const x = Math.sin(dLat/2)**2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon/2)**2;
+  return Math.round(2 * R * Math.atan2(Math.sqrt(x), Math.sqrt(1-x)));
+}
+function fmt(n) { return n.toLocaleString("zh-CN"); }
+
+origins.forEach(o => {
+  const opt = document.createElement("option");
+  opt.value = o.key;
+  opt.textContent = o.label;
+  originSelect.appendChild(opt);
+});
+originSelect.value = "pek";
+
+function currentOrigin() {
+  return origins.find(o => o.key === originSelect.value);
+}
+
+function withDistances() {
+  const origin = currentOrigin();
+  return airports.map(a => ({...a, distance: haversine(origin, a)}));
+}
+
+function filteredSorted() {
+  const q = searchInput.value.trim().toLowerCase();
+  let rows = withDistances().filter(a => {
+    const s = `${a.code} ${a.icao} ${a.name} ${a.nameZh} ${a.city} ${a.cityZh} ${a.kind}`.toLowerCase();
+    return !q || s.includes(q);
+  });
+  const mode = sortSelect.value;
+  rows.sort((a,b) => {
+    if (mode === "distanceAsc") return a.distance - b.distance;
+    if (mode === "distanceDesc") return b.distance - a.distance;
+    if (mode === "northSouth") return b.lat - a.lat;
+    if (mode === "southNorth") return a.lat - b.lat;
+    if (mode === "code") return a.code.localeCompare(b.code);
+    return 0;
+  });
+  return rows;
+}
+
+const W = 900, H = 620;
+const bounds = { lonMin: 102.4, lonMax: 117.3, latMin: 8.1, latMax: 40.8 };
+function project(lat, lon) {
+  const x = (lon - bounds.lonMin) / (bounds.lonMax - bounds.lonMin) * W;
+  const y = (bounds.latMax - lat) / (bounds.latMax - bounds.latMin) * H;
+  return [x, y];
+}
+
+function drawMap(rows) {
+  const svg = $("map");
+  const origin = currentOrigin();
+  const [ox, oy] = project(origin.lat, origin.lon);
+  const max = Math.max(...withDistances().map(a => a.distance));
+  const min = Math.min(...withDistances().map(a => a.distance));
+  const visible = new Set(rows.map(r => r.code));
+
+  let parts = [];
+  for (let lon = 103; lon <= 117; lon += 2) {
+    const [x1,y1] = project(bounds.latMin, lon), [x2,y2] = project(bounds.latMax, lon);
+    parts.push(`<line class="gridline" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"></line>`);
+  }
+  for (let lat = 10; lat <= 40; lat += 5) {
+    const [x1,y1] = project(lat, bounds.lonMin), [x2,y2] = project(lat, bounds.lonMax);
+    parts.push(`<line class="gridline" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"></line>`);
+  }
+
+  // 粗略的中国华南/越南海岸线示意，仅用于空间参照
+  const coastline = [
+    [40.1,116.4],[38.7,117.2],[36.5,120.0],[34.2,119.3],[31.4,121.2],[28.3,121.0],[25.0,118.8],
+    [22.8,113.5],[21.6,108.9],[20.9,107.1],[20.1,106.3],[18.8,105.8],[17.5,106.5],[16.1,108.2],
+    [14.8,109.1],[13.0,109.3],[11.4,109.0],[10.0,106.8],[8.7,106.6],[9.8,104.0],[12.0,104.8],
+    [14.4,107.0],[16.6,106.5],[18.7,105.4],[21.5,104.6],[24.0,106.5],[27.0,110.2],[31.0,113.2],
+    [35.0,114.5],[40.1,116.4]
+  ].map(([lat,lon]) => project(lat,lon).join(",")).join(" ");
+  parts.push(`<polygon class="coast" points="${coastline}"></polygon>`);
+
+  withDistances().forEach(a => {
+    if (!visible.has(a.code)) return;
+    const [x,y] = project(a.lat, a.lon);
+    const sel = a.code === selectedCode ? " selected" : "";
+    const opacity = 0.35 + 0.65 * (a.distance - min) / (max - min);
+    parts.push(`<line class="route${sel}" x1="${ox.toFixed(1)}" y1="${oy.toFixed(1)}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" style="opacity:${opacity.toFixed(2)}"></line>`);
+  });
+
+  parts.push(`<circle class="origin-dot" cx="${ox.toFixed(1)}" cy="${oy.toFixed(1)}" r="7"></circle>`);
+  parts.push(`<text class="label" x="${(ox+10).toFixed(1)}" y="${(oy-8).toFixed(1)}">北京</text>`);
+
+  withDistances().forEach(a => {
+    if (!visible.has(a.code)) return;
+    const [x,y] = project(a.lat, a.lon);
+    const sel = a.code === selectedCode ? " selected" : "";
+    parts.push(`<circle class="airport-dot${sel}" data-code="${a.code}" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="5"><title>${a.code} ${a.nameZh}：${fmt(a.distance)} km</title></circle>`);
+    parts.push(`<text class="label" x="${(x+8).toFixed(1)}" y="${(y+4).toFixed(1)}">${a.code}</text>`);
+  });
+
+  svg.innerHTML = parts.join("");
+  svg.querySelectorAll(".airport-dot").forEach(dot => {
+    dot.addEventListener("click", () => {
+      selectedCode = dot.dataset.code;
+      render();
+    });
+  });
+}
+
+function renderStats(rows) {
+  const all = withDistances();
+  const nearest = [...all].sort((a,b) => a.distance-b.distance)[0];
+  const farthest = [...all].sort((a,b) => b.distance-a.distance)[0];
+  const avg = Math.round(all.reduce((s,a) => s+a.distance,0)/all.length);
+  $("countStat").textContent = rows.length;
+  $("nearStat").textContent = `${nearest.code} ${fmt(nearest.distance)}`;
+  $("farStat").textContent = `${farthest.code} ${fmt(farthest.distance)}`;
+  $("avgStat").textContent = fmt(avg);
+  $("originPill").textContent = currentOrigin().label;
+}
+
+function renderRank(rows) {
+  const list = $("rankList");
+  const max = Math.max(...withDistances().map(a => a.distance));
+  const min = Math.min(...withDistances().map(a => a.distance));
+  list.innerHTML = rows.map(a => {
+    const pct = ((a.distance - min) / (max - min) * 72 + 28).toFixed(1);
+    const selected = a.code === selectedCode ? " selected" : "";
+    return `<div class="bar-row${selected}" data-code="${a.code}">
+      <div class="code">${a.code}</div>
+      <div class="bar-bg"><div class="bar-fill" style="width:${pct}%"></div><div class="bar-label">${a.cityZh} · ${a.nameZh}</div></div>
+      <div class="dist">${fmt(a.distance)}</div>
+    </div>`;
+  }).join("");
+  list.querySelectorAll(".bar-row").forEach(row => {
+    row.addEventListener("click", () => {
+      selectedCode = row.dataset.code;
+      render();
+    });
+  });
+}
+
+function renderTable(rows) {
+  const body = $("tableBody");
+  body.innerHTML = rows.map(a => `
+    <tr data-code="${a.code}" class="${a.code === selectedCode ? "selected" : ""}">
+      <td><strong>${a.code}</strong><br><span class="badge">${a.icao}</span></td>
+      <td>${a.nameZh}<br><span style="color:var(--muted)">${a.name}</span></td>
+      <td>${a.cityZh}<br><span style="color:var(--muted)">${a.city}</span></td>
+      <td><span class="badge">${a.kind}</span></td>
+      <td class="num">${a.lat.toFixed(5)}</td>
+      <td class="num">${a.lon.toFixed(5)}</td>
+      <td class="num"><strong>${fmt(a.distance)} km</strong></td>
+    </tr>`).join("");
+  body.querySelectorAll("tr").forEach(row => {
+    row.addEventListener("click", () => {
+      selectedCode = row.dataset.code;
+      render();
+      window.scrollTo({top: 0, behavior: "smooth"});
+    });
+  });
+}
+
+function renderDetail() {
+  const a = withDistances().find(x => x.code === selectedCode) || withDistances()[0];
+  if (!withDistances().some(x => x.code === selectedCode)) selectedCode = a.code;
+  $("detailBox").innerHTML = `
+    <div class="detail-title">
+      <strong>${a.code} · ${a.nameZh}</strong>
+      <span class="pill">${fmt(a.distance)} km</span>
+    </div>
+    <div style="color:var(--muted); margin-bottom: 12px;">${a.name} · ${a.cityZh} / ${a.city}</div>
+    <div class="detail-grid">
+      <div>ICAO<span>${a.icao}</span></div>
+      <div>机场类型<span>${a.kind}</span></div>
+      <div>坐标<span>${a.lat.toFixed(5)}, ${a.lon.toFixed(5)}</span></div>
+    </div>`;
+}
+
+function render() {
+  const rows = filteredSorted();
+  if (rows.length && !rows.some(r => r.code === selectedCode)) selectedCode = rows[0].code;
+  renderStats(rows);
+  drawMap(rows);
+  renderRank(rows);
+  renderTable(rows);
+  renderDetail();
+}
+
+function downloadCsv() {
+  const rows = filteredSorted();
+  const headers = ["IATA","ICAO","机场中文","Airport","城市中文","City","类型","纬度","经度","距离km","起点"];
+  const data = rows.map(a => [a.code,a.icao,a.nameZh,a.name,a.cityZh,a.city,a.kind,a.lat,a.lon,a.distance,currentOrigin().label]);
+  const csv = [headers, ...data].map(row => row.map(v => `"${String(v).replaceAll('"','""')}"`).join(",")).join("\n");
+  const blob = new Blob(["\ufeff" + csv], {type: "text/csv;charset=utf-8;"});
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `beijing_to_vietnam_airports_${originSelect.value}.csv`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+originSelect.addEventListener("change", render);
+sortSelect.addEventListener("change", render);
+searchInput.addEventListener("input", render);
+$("downloadCsv").addEventListener("click", downloadCsv);
+render();
+</script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v833ccba57c9e4d2798f2e76cebdd09a11778172276447" integrity="sha512-57MDmcccJXYtNnH+ZiBwzC4jb2rvgVCEokYN+L/nLlmO8rfYT/gIpW2A569iJ/3b+0UEasghjuZH/ma3wIs/EQ==" data-cf-beacon='{"version":"2024.11.0","token":"7939e04a4baf43c8b86a560f74aac60e","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v833ccba57c9e4d2798f2e76cebdd09a11778172276447" integrity="sha512-57MDmcccJXYtNnH+ZiBwzC4jb2rvgVCEokYN+L/nLlmO8rfYT/gIpW2A569iJ/3b+0UEasghjuZH/ma3wIs/EQ==" data-cf-beacon='{"version":"2024.11.0","token":"45c2bf8136a245cd97f1c2e9a96c0730","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+</body>
+</html>
